@@ -371,17 +371,21 @@ const customMenu = {
     remove(i) { if(this.stops.length > 2) { this.stops.splice(i, 1); this.renderInputs(); } },
     start() {
         CONFIG.FLOOR = this.colors.floor; CONFIG.SEAT_FRAME = this.colors.seat;
-        // Fix for "Previous Stop" Logic with +3s Pre-arrival
+        // FIX: Map custom {en, zh} to game {name_en, name_zh}
+        const uiRoute = this.stops.map(s => ({ name_en: s.en, name_zh: s.zh }));
+        
+        // FIX: Trigger logic
         const dur = (this.stops.length - 1) * 15;
-        const gs = this.stops.slice(1).map((s, idx) => ({ 
-            t: dur - ((idx+1)*15) + 3, // +3 seconds buffer for "Pre-arrival"
+        // Triggers map to the *next* station (skipping index 0)
+        const triggers = this.stops.slice(1).map((s, idx) => ({ 
+            t: dur - ((idx+1)*15) + 3, // +3s Pre-arrival buffer
             name_en: s.en, 
             name_zh: s.zh 
         }));
-        if(gs.length > 0) gs[gs.length-1].t = 0.5; // Final station immediate
+        if(triggers.length > 0) triggers[triggers.length-1].t = 0.5;
         
         document.getElementById('customScreen').classList.add('hidden');
-        game.start(this.diff, this.stops, dur, gs);
+        game.start(this.diff, uiRoute, dur, triggers);
     }
 };
 
@@ -492,9 +496,9 @@ class Game {
                 { t: 15, name_en: "Chinatown", name_zh: "唐人街" },
                 { t: 0.1, name_en: "Terminal", name_zh: "终点站" }
             ];
-            this.totalDuration = 60;
-            // Default Triggers (Skip index 0, +3s buffer)
+            // Triggers skip first station, +3s buffer
             this.triggers = this.route.slice(1).map(s => ({...s, t: s.t + 3}));
+            this.totalDuration = 60;
         } else {
             this.route = routeList; 
             this.triggers = triggerList; 
