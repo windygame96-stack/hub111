@@ -38,7 +38,17 @@
 
         h1 { font-size: 2rem; margin: 10px 0; color: #f1c40f; text-transform: uppercase; letter-spacing: 2px; }
         h2 { margin: 10px 0; font-size: 1.5rem; color: #bdc3c7; }
-        p { font-size: 1rem; margin-bottom: 20px; color: #bdc3c7; max-width: 90%; line-height: 1.4; }
+        
+        /* INSTRUCTION BOX */
+        .instruction-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px; border-radius: 10px;
+            max-width: 600px; width: 90%;
+            margin-bottom: 20px; text-align: left;
+            font-size: 0.9rem; line-height: 1.5; color: #ecf0f1;
+            border: 1px solid #7f8c8d;
+        }
+        .instruction-box b { color: #f1c40f; }
         
         .btn-group { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
 
@@ -126,6 +136,10 @@
         .station-label { position: absolute; top: 20px; font-size: 10px; color: #95a5a6; transform: translateX(-50%); white-space: nowrap; text-shadow: 1px 1px 1px #000; }
 
         .hud-btn { padding: 6px 12px; border-radius: 4px; font-size: 0.9rem; margin-left: 2px; }
+        #speedBtn { background: #16a085; min-width: 45px; } 
+        #giveSeatBtn { background: #8e44ad; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
         #pauseBtn { background: #e67e22; } #restartBtn { background: #c0392b; }
         
         #notification {
@@ -154,15 +168,29 @@
             </div>
         </div>
         <div class="hud-bottom">
-            <div style="display:flex; flex-direction:column;">
-                <span class="hud-label" data-i18n="energy">ENERGY</span>
-                <div id="energyBarContainer"><div id="energyFill"></div></div>
+            <div style="display:flex; gap: 15px;">
+                <div style="display:flex; flex-direction:column;">
+                    <span class="hud-label" data-i18n="energy">ENERGY</span>
+                    <div id="energyBarContainer"><div id="energyFill"></div></div>
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <span class="hud-label" data-i18n="moral">MORAL</span>
+                    <span id="moralValue" class="hud-value" style="color: #f1c40f;">100</span>
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <span class="hud-label" data-i18n="clash">CLASH</span>
+                    <span id="clashValue" class="hud-value" style="color: #e74c3c;">0</span>
+                </div>
             </div>
+
             <div class="hud-interactive">
+                <button id="giveSeatBtn" class="hud-btn hidden" onclick="game.donateSeat()" data-i18n="btnGive">GIVE SEAT</button>
+                
                 <div style="margin-right: 5px; text-align: right;">
                     <span class="hud-label" style="display:block;" data-i18n="time">TIME</span>
                     <span class="hud-value" id="timer">60s</span>
                 </div>
+                <button id="speedBtn" class="hud-btn" onclick="game.toggleSpeed()">1x</button>
                 <button id="pauseBtn" class="hud-btn" onclick="game.togglePause()">II</button>
                 <button id="restartBtn" class="hud-btn" onclick="game.goToMenu()">↻</button>
             </div>
@@ -172,6 +200,9 @@
     <div id="startScreen" class="overlay">
         <h1 data-i18n="title">Subway Seat Rush</h1>
         
+        <div class="instruction-box" id="instructionBox">
+            </div>
+
         <div class="btn-group" style="margin: 5px 0;">
             <span style="display:flex; align-items:center; font-size:0.8rem; color:#bdc3c7; margin-right:5px;" data-i18n="layout">Layout:</span>
             <button id="l-auto" class="btn btn-layout selected" onclick="game.setLayout('auto')">Auto</button>
@@ -237,7 +268,7 @@
     <div id="gameOverScreen" class="overlay hidden">
         <h1 id="resultTitle">TRIP COMPLETE</h1>
         <div class="stars" id="resultStars" style="font-size:3rem; color:#f1c40f;">⭐⭐⭐</div>
-        <p id="resultMessage">Energy remaining: 85</p>
+        <p id="resultBreakdown" style="font-size:1rem; color:#bdc3c7; line-height:1.6; margin-bottom:15px;"></p>
         <button class="btn" onclick="game.goToMenu()" data-i18n="backMenu">BACK TO MENU</button>
     </div>
 </div>
@@ -247,26 +278,30 @@
 const TEXT = {
     en: {
         title: "Subway Seat Rush", selectDiff: "Select Difficulty",
-        easy: "EASY", medium: "MEDIUM", hard: "HARD", custom: "CUSTOM", energy: "ENERGY", time: "TIME", paused: "PAUSED", resume: "RESUME",
+        instructions: "<b>HOW TO PLAY:</b><br>1. 🔵 <b>Move:</b> WASD, Arrows, or Touch/Drag.<br>2. 💺 <b>Energy:</b> Drains! Sit on <span style='color:#2ecc71'>Green Seats</span> to recover.<br>3. ♿ <b>Moral:</b> Don't sit on <span style='color:#e67e22'>Orange Seats</span> (-30 Moral).<br>4. 💥 <b>Clashes:</b> Avoid bumping people! Score drops if you do.<br>5. 💜 <b>Kindness:</b> Click 'GIVE SEAT' if Elderly/Child (Purple) is nearby (+30 Moral).",
+        easy: "EASY", medium: "MEDIUM", hard: "HARD", custom: "CUSTOM", energy: "ENERGY", moral: "MORAL", clash: "CLASH", time: "TIME", paused: "PAUSED", resume: "RESUME",
         menu: "MENU", backMenu: "BACK TO MENU", station: "STATION", arrival: "ARRIVING AT", exhausted: "EXHAUSTED", safe: "ARRIVED SAFELY",
-        collapsed: "You collapsed.", finalEnergy: "Final Energy", sit: "SIT", walk: "WALK", st: "St", end: "End",
+        collapsed: "You collapsed.", finalEnergy: "Final Score", sit: "SIT", walk: "WALK", st: "St", end: "End",
         customTitle: "Route Editor", lblEN: "Name (EN)", lblZH: "Name (ZH)", addStop: "Add Stop", back: "BACK", start: "START",
-        floorColor: "Floor Color", seatColor: "Seat Frame", layout: "Layout:", btnSave: "Save", savedFiles: "Saved Routes:", load: "Load"
+        floorColor: "Floor Color", seatColor: "Seat Frame", layout: "Layout:", btnSave: "Save", savedFiles: "Saved Routes:", load: "Load",
+        immoral: "IMMORAL! -30 Moral", kind: "KINDNESS! +30 Moral", btnGive: "GIVE SEAT", clashMsg: "Oops! Bumped!"
     },
     zh: {
         title: "地铁抢座大作战", selectDiff: "选择难度",
-        easy: "简单", medium: "普通", hard: "困难", custom: "自定义", energy: "体力", time: "剩余时间", paused: "暂停", resume: "继续",
+        instructions: "<b>游戏指南:</b><br>1. 🔵 <b>移动:</b> WASD, 方向键 或 触摸拖拽。<br>2. 💺 <b>体力:</b> 随时间流逝! 坐<span style='color:#2ecc71'>绿色空座</span>恢复。<br>3. ♿ <b>公德:</b> 勿坐<span style='color:#e67e22'>橙色爱心座</span> (扣除30公德)。<br>4. 💥 <b>碰撞:</b> 避免撞人！碰撞会扣分。<br>5. 💜 <b>让座:</b> 若有老人/小孩(紫色)在旁，点击'让座' (+30公德)。",
+        easy: "简单", medium: "普通", hard: "困难", custom: "自定义", energy: "体力", moral: "公德", clash: "碰撞", time: "剩余时间", paused: "暂停", resume: "继续",
         menu: "主菜单", backMenu: "返回主菜单", station: "站点", arrival: "即将到达", exhausted: "体力耗尽", safe: "安全抵达",
-        collapsed: "你倒下了。", finalEnergy: "剩余体力", sit: "坐下", walk: "行走", st: "站", end: "终点",
+        collapsed: "你倒下了。", finalEnergy: "最终评分", sit: "坐下", walk: "行走", st: "站", end: "终点",
         customTitle: "路线编辑器", lblEN: "英文名", lblZH: "中文名", addStop: "添加站点", back: "返回", start: "开始行程",
-        floorColor: "地板颜色", seatColor: "座位边框", layout: "布局:", btnSave: "保存", savedFiles: "存档列表:", load: "读取"
+        floorColor: "地板颜色", seatColor: "座位边框", layout: "布局:", btnSave: "保存", savedFiles: "存档列表:", load: "读取",
+        immoral: "没公德！ 公德 -30", kind: "好人！ 公德 +30", btnGive: "让座", clashMsg: "哎呀! 撞到了!"
     }
 };
 
 let CUR_LANG = 'en';
 const CONFIG = {
-    PLAYER_SPEED: 400, NPC_EXIT_SPEED: 100, ENERGY_MAX: 100, ENERGY_DRAIN: 2, ENERGY_REGAIN: 1, 
-    COLORS: { PLAYER: '#3498db', NPC: '#7f8c8d', SEAT_VACANT_A: '#2ecc71', SEAT_VACANT_B: '#00ff00', DOOR_OPEN: '#e67e22', TARGET_RING: '#e74c3c' },
+    PLAYER_SPEED: 400, NPC_EXIT_SPEED: 100, ENERGY_MAX: 100, ENERGY_REGAIN: 2, 
+    COLORS: { PLAYER: '#3498db', NPC: '#7f8c8d', NEEDY: '#9b59b6', SEAT_VACANT_A: '#2ecc71', SEAT_VACANT_B: '#00ff00', SEAT_PRIORITY: '#e67e22', DOOR_OPEN: '#e67e22', TARGET_RING: '#e74c3c' },
     FLOOR: '#ecf0f1', SEAT_FRAME: '#bdc3c7'
 };
 
@@ -296,6 +331,7 @@ function updateText() {
         const key = el.getAttribute('data-i18n');
         if(t[key]) el.innerText = t[key];
     });
+    document.getElementById('instructionBox').innerHTML = t.instructions;
     if(game.isRunning) game.rebuildRouteUI();
     if(!document.getElementById('customScreen').classList.contains('hidden')) customMenu.renderInputs();
 }
@@ -354,7 +390,7 @@ const customMenu = {
         const list = document.getElementById('saveList'); list.innerHTML = '';
         this.saves.forEach((s, i) => {
             const row = document.createElement('div'); row.className = 'save-list-row';
-            row.innerHTML = `<div class="save-name" onclick="customMenu.loadProfile(${i})">${s.name} (${s.stops.length})</div><button class="btn-icon btn-remove" onclick="customMenu.deleteProfile(${i})">X</button>`;
+            row.innerHTML = `<div class="save-name" onclick="customMenu.loadProfile(${i})">${s.name} (${s.stops.length} Stops)</div><button class="btn-icon btn-remove" onclick="customMenu.deleteProfile(${i})">X</button>`;
             list.appendChild(row);
         });
     },
@@ -371,35 +407,46 @@ const customMenu = {
     remove(i) { if(this.stops.length > 2) { this.stops.splice(i, 1); this.renderInputs(); } },
     start() {
         CONFIG.FLOOR = this.colors.floor; CONFIG.SEAT_FRAME = this.colors.seat;
-        // FIX: Map custom {en, zh} to game {name_en, name_zh}
-        const uiRoute = this.stops.map(s => ({ name_en: s.en, name_zh: s.zh }));
-        
-        // FIX: Trigger logic
         const dur = (this.stops.length - 1) * 15;
-        // Triggers map to the *next* station (skipping index 0)
-        const triggers = this.stops.slice(1).map((s, idx) => ({ 
-            t: dur - ((idx+1)*15) + 3, // +3s Pre-arrival buffer
-            name_en: s.en, 
-            name_zh: s.zh 
-        }));
-        if(triggers.length > 0) triggers[triggers.length-1].t = 0.5;
-        
+        const gs = this.stops.slice(1).map((s, idx) => ({ t: dur - ((idx+1)*15) + 3, name_en: s.en, name_zh: s.zh }));
+        if(gs.length > 0) gs[gs.length-1].t = 0.5;
         document.getElementById('customScreen').classList.add('hidden');
-        game.start(this.diff, uiRoute, dur, triggers);
+        game.start(this.diff, this.stops, dur, gs);
     }
 };
 
 class Seat {
-    constructor(id, x, y) { this.id = id; this.x = x; this.y = y; this.w = 50; this.h = 50; this.occupant = null; this.isVacant = false; this.flashTimer = 0; }
+    constructor(id, x, y) { 
+        this.id = id; this.x = x; this.y = y; this.w = 50; this.h = 50; 
+        this.occupant = null; this.isVacant = false; this.flashTimer = 0; 
+        this.isPriority = false; 
+    }
     draw(ctx) {
-        ctx.fillStyle = this.isVacant ? ((Math.sin(this.flashTimer += 0.2) > 0) ? CONFIG.COLORS.SEAT_VACANT_B : CONFIG.COLORS.SEAT_VACANT_A) : CONFIG.SEAT_FRAME;
+        if(this.isVacant) {
+            ctx.fillStyle = ((Math.sin(this.flashTimer += 0.2) > 0) ? CONFIG.COLORS.SEAT_VACANT_B : CONFIG.COLORS.SEAT_VACANT_A);
+        } else if (this.isPriority) {
+            ctx.fillStyle = CONFIG.COLORS.SEAT_PRIORITY; 
+        } else {
+            ctx.fillStyle = CONFIG.SEAT_FRAME;
+        }
         ctx.fillRect(this.x, this.y, this.w, this.h);
         ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(this.x+4, this.y+4, this.w-8, this.h-8);
+        if(this.isPriority && !this.isVacant && !this.occupant) {
+            ctx.fillStyle = "rgba(255,255,255,0.7)";
+            ctx.font = "20px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText("♿", this.x + this.w/2, this.y + this.h/2 + 7);
+        }
     }
 }
 
 class Actor {
-    constructor(x, y, isPlayer) { this.x = x; this.y = y; this.r = 14; this.isPlayer = isPlayer; this.seat = null; this.targetSeat = null; this.targetDoor = null; this.isExiting = false; this.isDead = false; }
+    constructor(x, y, isPlayer) { 
+        this.x = x; this.y = y; this.r = 14; 
+        this.isPlayer = isPlayer; 
+        this.isNeedy = false; 
+        this.seat = null; this.targetSeat = null; this.targetDoor = null; 
+        this.isExiting = false; this.isDead = false; 
+    }
     sit(seat) { this.seat = seat; seat.occupant = this; seat.isVacant = false; this.x = seat.x + seat.w/2; this.y = seat.y + seat.h/2; this.targetSeat = null; }
     standUp() { if (this.seat) { this.seat.occupant = null; this.seat = null; } }
     exitTrain(tx, ty) {
@@ -410,7 +457,11 @@ class Actor {
     draw(ctx) {
         if (this.isDead && !this.isPlayer) return;
         ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
-        ctx.fillStyle = this.isPlayer ? CONFIG.COLORS.PLAYER : CONFIG.COLORS.NPC;
+        
+        if(this.isPlayer) ctx.fillStyle = CONFIG.COLORS.PLAYER;
+        else if(this.isNeedy) ctx.fillStyle = CONFIG.COLORS.NEEDY;
+        else ctx.fillStyle = CONFIG.COLORS.NPC;
+        
         ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
         if (this.isPlayer) {
             ctx.fillStyle = "white"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
@@ -426,8 +477,9 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.keys = {}; this.pointer = {x:0, y:0, isDown:false};
         this.isRunning = false; this.layoutMode = 'auto'; 
+        this.timeScale = 1; this.speedLevels = [1, 1.5, 2, 3]; this.speedIndex = 0;
         window.addEventListener('resize', () => this.resize());
-        setTimeout(() => this.resize(), 100);
+        setTimeout(() => { this.resize(); updateText(); }, 100);
         this.setupInputs();
         customMenu.init();
     }
@@ -486,8 +538,20 @@ class Game {
         document.getElementById('startScreen').classList.remove('hidden');
     }
 
+    toggleSpeed() {
+        this.speedIndex = (this.speedIndex + 1) % this.speedLevels.length;
+        this.timeScale = this.speedLevels[this.speedIndex];
+        document.getElementById('speedBtn').innerText = this.timeScale + "x";
+    }
+
     start(difficulty, routeList, duration, triggerList) {
         this.currentLevel = LEVELS[difficulty];
+        this.moral = 100;
+        this.clashCount = 0; // NEW: Reset Clash Count
+        this.clashCooldown = 0;
+        this.speedIndex = 0; this.timeScale = 1; 
+        document.getElementById('speedBtn').innerText = "1x";
+
         if(!routeList) { 
             CONFIG.FLOOR = '#ecf0f1'; CONFIG.SEAT_FRAME = '#bdc3c7'; 
             this.route = [
@@ -496,11 +560,10 @@ class Game {
                 { t: 15, name_en: "Chinatown", name_zh: "唐人街" },
                 { t: 0.1, name_en: "Terminal", name_zh: "终点站" }
             ];
-            // Triggers skip first station, +3s buffer
             this.triggers = this.route.slice(1).map(s => ({...s, t: s.t + 3}));
             this.totalDuration = 60;
         } else {
-            this.route = routeList; 
+            this.route = routeList.map(s => ({ name_en: s.en || s.name_en, name_zh: s.zh || s.name_zh }));
             this.triggers = triggerList; 
             this.totalDuration = duration;
         }
@@ -512,6 +575,8 @@ class Game {
         this.seats = []; this.npcs = [];
         this.player = new Actor(this.width/2, this.height/2, true);
         this.energy = CONFIG.ENERGY_MAX; this.timeLeft = this.totalDuration;
+        this.energyDrainRate = 100 / this.totalDuration;
+        
         this.nextStationIndex = 0; this.isRunning = true; this.lastTime = performance.now();
         this.doorsOpen = false;
         this.buildLevel(); this.spawnInitialNPCs(); this.rebuildRouteUI();
@@ -555,6 +620,13 @@ class Game {
     spawnInitialNPCs() {
         this.npcs = [];
         let all = [...this.seats];
+        let pCount = Math.floor(rnd(3, 6));
+        let pIndices = [];
+        while(pIndices.length < pCount) {
+            let r = Math.floor(Math.random() * 24);
+            if(pIndices.indexOf(r) === -1) pIndices.push(r);
+        }
+        this.seats.forEach((s, i) => { if(pIndices.includes(i)) s.isPriority = true; });
         for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
         for(let i=0; i<22; i++) { const npc = new Actor(0,0,false); this.npcs.push(npc); npc.sit(all[i]); }
         const area = this.isPortrait ? {minX:120, maxX:400, minY:100, maxY:850} : {minX:50, maxX:900, minY:170, maxY:380};
@@ -584,25 +656,77 @@ class Game {
         if(!this.isPaused) this.lastTime = performance.now();
     }
 
+    // --- NEW: CLASH LOGIC ---
     resolveCollision(a, b) {
         const dx = b.x - a.x, dy = b.y - a.y;
         const d = Math.hypot(dx, dy), minD = a.r + b.r;
+        
         if (d < minD && d > 0.001) {
+            // Push away
             const overlap = minD - d;
             const mx = (dx/d) * overlap/2, my = (dy/d) * overlap/2;
             a.x -= mx; a.y -= my; b.x += mx; b.y += my;
+
+            // Clash Counting (Debounced)
+            if((a.isPlayer || b.isPlayer) && this.clashCooldown <= 0) {
+                this.clashCount++;
+                this.clashCooldown = 0.5; // 0.5s immunity
+                // Visual Cue
+                const notif = document.getElementById('notification');
+                notif.innerText = TEXT[CUR_LANG].clashMsg;
+                notif.style.background = "#e74c3c";
+                notif.style.opacity = 1;
+                setTimeout(() => notif.style.opacity = 0, 800);
+            }
         }
     }
 
+    checkForNeedy() {
+        if(!this.player.seat) {
+            document.getElementById('giveSeatBtn').classList.add('hidden');
+            return;
+        }
+        let nearest = null; let minD = 200; // Updated Scope
+        this.npcs.forEach(n => {
+            if(n.isNeedy && !n.seat) {
+                const d = getDist(this.player, n);
+                if(d < minD) { nearest = n; minD = d; }
+            }
+        });
+        document.getElementById('giveSeatBtn').classList.toggle('hidden', !nearest);
+        this.nearbyNeedy = nearest;
+    }
+
+    donateSeat() {
+        if(!this.player.seat || !this.nearbyNeedy) return;
+        const s = this.player.seat;
+        this.player.standUp(); 
+        this.nearbyNeedy.targetSeat = s; 
+        this.nearbyNeedy.sit(s); 
+        this.moral = Math.min(100, this.moral + 30);
+        const notif = document.getElementById('notification');
+        notif.innerText = TEXT[CUR_LANG].kind;
+        notif.style.background = "#2ecc71";
+        notif.style.opacity = 1;
+        setTimeout(() => notif.style.opacity = 0, 2000);
+        document.getElementById('giveSeatBtn').classList.add('hidden');
+    }
+
     update(dt) {
+        if(this.clashCooldown > 0) this.clashCooldown -= dt; // Countdown immunity
+
         this.timeLeft -= dt;
         if (this.timeLeft <= 0) return this.gameOver(true);
         if (this.nextStationIndex < this.triggers.length) {
             const st = this.triggers[this.nextStationIndex];
             if (this.timeLeft <= st.t) { this.triggerStationEvent(st); this.nextStationIndex++; }
         }
-        if (this.player.seat) this.energy = Math.min(CONFIG.ENERGY_MAX, this.energy + CONFIG.ENERGY_REGAIN * dt);
-        else this.energy = Math.max(0, this.energy - CONFIG.ENERGY_DRAIN * dt);
+        
+        if (this.player.seat) {
+            this.energy = Math.min(CONFIG.ENERGY_MAX, this.energy + CONFIG.ENERGY_REGAIN * dt);
+        } else {
+            this.energy = Math.max(0, this.energy - this.energyDrainRate * dt);
+        }
         if (this.energy <= 0) return this.gameOver(false);
 
         if (!this.player.seat) {
@@ -625,7 +749,19 @@ class Game {
             }
             this.player.x = Math.max(20, Math.min(this.width-20, this.player.x));
             this.player.y = Math.max(20, Math.min(this.height-20, this.player.y));
-            this.seats.forEach(s => { if(s.isVacant && !s.occupant && checkCircleRect(this.player, s)) this.player.sit(s); });
+            this.seats.forEach(s => { 
+                if(s.isVacant && !s.occupant && checkCircleRect(this.player, s)) {
+                    this.player.sit(s);
+                    if(s.isPriority) {
+                        this.moral = Math.max(0, this.moral - 30);
+                        const notif = document.getElementById('notification');
+                        notif.innerText = TEXT[CUR_LANG].immoral;
+                        notif.style.background = "#e74c3c";
+                        notif.style.opacity = 1;
+                        setTimeout(() => notif.style.opacity = 0, 2000);
+                    }
+                } 
+            });
             this.npcs.forEach(n => { if(!n.seat && !n.isExiting) this.resolveCollision(this.player, n); });
         }
 
@@ -653,6 +789,7 @@ class Game {
             }
         });
         this.npcs = this.npcs.filter(n => !n.isDead);
+        this.checkForNeedy();
         this.updateUI();
     }
 
@@ -660,6 +797,7 @@ class Game {
         const notif = document.getElementById('notification');
         const stName = (CUR_LANG === 'zh') ? st.name_zh : st.name_en;
         notif.innerText = `${TEXT[CUR_LANG].arrival}: ${stName}`;
+        notif.style.background = "rgba(231, 76, 60, 0.95)";
         notif.style.opacity = 1;
         setTimeout(() => notif.style.opacity = 0, 3000);
         this.doorsOpen = true; setTimeout(() => this.doorsOpen = false, 4000);
@@ -693,6 +831,9 @@ class Game {
                 tx = nx; ty = isTop ? 150 : this.height-150;
             }
             const n = new Actor(nx, ny, false);
+            // 40% Chance to be Needy
+            if(Math.random() < 0.4) n.isNeedy = true;
+            
             n.x = tx; n.y = ty; this.npcs.push(n);
         }
     }
@@ -733,13 +874,15 @@ class Game {
     loop(ts) {
         if(!this.isRunning) return;
         let dt = (ts - this.lastTime)/1000; if(dt>0.1) dt=0.1; this.lastTime = ts;
-        if(!this.isPaused) { this.update(dt); this.draw(); }
+        if(!this.isPaused) { this.update(dt * this.timeScale); this.draw(); }
         requestAnimationFrame(t => this.loop(t));
     }
 
     updateUI() {
         document.getElementById('energyFill').style.width = this.energy + '%';
         document.getElementById('energyFill').style.backgroundColor = this.energy>30?'#2ecc71':'#e74c3c';
+        document.getElementById('moralValue').innerText = this.moral;
+        document.getElementById('clashValue').innerText = this.clashCount;
         document.getElementById('timer').innerText = Math.ceil(this.timeLeft) + 's';
         const p = ((this.totalDuration - this.timeLeft) / this.totalDuration) * 90 + 5;
         document.getElementById('trainIcon').style.left = p + '%';
@@ -752,10 +895,21 @@ class Game {
         const t = TEXT[CUR_LANG];
         const title = document.getElementById('resultTitle');
         if(win) {
-            let s = this.energy>=80?3:(this.energy>=50?2:1);
+            // WEIGHTED SCORE LOGIC: Energy(60%) + Moral(20%) + Safety(20%)
+            // Safety = 100 - (Clashes * 5)
+            const safetyScore = Math.max(0, 100 - (this.clashCount * 5));
+            const finalScore = (this.energy * 0.6) + (this.moral * 0.2) + (safetyScore * 0.2);
+            
+            let s = finalScore>=85?3:(finalScore>=50?2:1);
+            
             title.innerText = t.safe; title.style.color = "#f1c40f";
             document.getElementById('resultStars').innerText = "⭐".repeat(s);
-            document.getElementById('resultMessage').innerText = `${t.finalEnergy}: ${Math.floor(this.energy)}`;
+            
+            let details = `${t.finalEnergy}: ${Math.floor(finalScore)}<br>`;
+            details += `<span style="font-size:0.8rem;color:#7f8c8d">`;
+            details += `Energy: ${Math.floor(this.energy)} | Moral: ${this.moral} | Safety: ${Math.floor(safetyScore)}</span>`;
+            
+            document.getElementById('resultMessage').innerHTML = details;
         } else {
             title.innerText = t.exhausted; title.style.color = "#e74c3c";
             document.getElementById('resultStars').innerText = "☠️";
